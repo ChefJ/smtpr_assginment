@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Address Book API Test</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h2 { margin-top: 30px; }
+    fieldset { margin-bottom: 20px; }
+    input, button { margin: 4px 0; }
+    .section { border: 1px solid #ddd; padding: 10px 15px; margin-bottom: 15px; }
+    pre { background: #f7f7f7; padding: 10px; max-height: 300px; overflow: auto; }
+    label { display: block; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<h1>Address Book API Test</h1>
+
+<div class="section">
+  <h2>Create Contact</h2>
+  <label>Name: <input type="text" id="create_name"></label>
+  <label>Email: <input type="email" id="create_email"></label>
+  <label>Phone: <input type="text" id="create_phone"></label>
+  <button onclick="createContact()">Create Contact</button>
+</div>
+
+<div class="section">
+  <h2>Create Label</h2>
+  <label>Label name: <input type="text" id="create_label_name"></label>
+  <button onclick="createLabel()">Create Label</button>
+</div>
+
+<div class="section">
+  <h2>Add Labels to Contact</h2>
+  <label>Contact ID: <input type="number" id="add_label_contact_id"></label>
+  <label>Labels (comma separated names): <input type="text" id="add_label_names" placeholder="friends,favorites"></label>
+  <button onclick="addLabelsToContact()">Add Labels</button>
+</div>
+
+<div class="section">
+  <h2>Remove Labels from Contact</h2>
+  <label>Contact ID: <input type="number" id="remove_label_contact_id"></label>
+  <label>Labels (comma separated names): <input type="text" id="remove_label_names" placeholder="friends,favorites"></label>
+  <button onclick="removeLabelsFromContact()">Remove Labels</button>
+</div>
+
+<div class="section">
+  <h2>List Contacts</h2>
+  <label>Filter by labels (comma separated names): <input type="text" id="list_labels" placeholder="friends,favorites"></label>
+  <label><input type="checkbox" id="emails_only"> Emails only</label>
+  <button onclick="listContacts()">Fetch</button>
+</div>
+
+<div class="section">
+  <h2>List Labels</h2>
+  <button onclick="listLabels()">Fetch Labels</button>
+</div>
+
+<div class="section">
+  <h2>Delete Contact / Label</h2>
+  <label>Contact ID to delete: <input type="number" id="del_contact_id"></label>
+  <button onclick="deleteContact()">Delete Contact (GET)</button>
+  <br>
+  <label>Label ID to delete: <input type="number" id="del_label_id"></label>
+  <button onclick="deleteLabel()">Delete Label (GET)</button>
+</div>
+
+<h2>Result</h2>
+<pre id="result"></pre>
+
+<script>
+  function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  }
+
+  function showResult(data) {
+    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function createContact() {
+    const body = {
+      name: document.getElementById('create_name').value,
+      email: document.getElementById('create_email').value,
+      phone: document.getElementById('create_phone').value,
+    };
+    const resp = await fetch("/contactbook/contact/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify(body),
+    });
+    showResult(await resp.json());
+  }
+
+  async function createLabel() {
+    const body = {
+      name: document.getElementById('create_label_name').value,
+    };
+    const resp = await fetch("/contactbook/label/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify(body),
+    });
+    showResult(await resp.json());
+  }
+
+  async function addLabelsToContact() {
+    const contactId = Number(document.getElementById('add_label_contact_id').value);
+    const labels = document.getElementById('add_label_names').value
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+
+    const body = { contact_id: contactId, labels: labels };
+
+    const resp = await fetch("/contactbook/contact/add_label", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify(body),
+    });
+    showResult(await resp.json());
+  }
+
+  async function removeLabelsFromContact() {
+    const contactId = Number(document.getElementById('remove_label_contact_id').value);
+    const labels = document.getElementById('remove_label_names').value
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+
+    const body = { contact_id: contactId, labels: labels };
+
+    const resp = await fetch("/contactbook/contact/remove_label", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken(),
+      },
+      body: JSON.stringify(body),
+    });
+    showResult(await resp.json());
+  }
+
+  async function listContacts() {
+    const labels = document.getElementById('list_labels').value.trim();
+    const emailsOnly = document.getElementById('emails_only').checked;
+
+    const params = new URLSearchParams();
+    if (labels) params.append("labels", labels);
+    if (emailsOnly) params.append("emails_only", "1");
+
+    const url = "/contactbook/contact/list" + (params.toString() ? "?" + params.toString() : "");
+    const resp = await fetch(url);
+    showResult(await resp.json());
+  }
+
+  async function listLabels() {
+    const resp = await fetch("/contactbook/label/list");
+    showResult(await resp.json());
+  }
+
+  async function deleteContact() {
+    const id = document.getElementById('del_contact_id').value;
+    const resp = await fetch("/contactbook/contact/del?id=" + encodeURIComponent(id));
+    showResult(await resp.json());
+  }
+
+  async function deleteLabel() {
+    const id = document.getElementById('del_label_id').value;
+    const resp = await fetch("/contactbook/label/del?id=" + encodeURIComponent(id));
+    showResult(await resp.json());
+  }
+</script>
+</body>
+</html>

@@ -15,4 +15,6 @@ urlpatterns = [
     path("contact/remove_label", views.remove_label, name="remove_label"),
 
     path("true_del", views.true_del, name="true_del"),
+    path("test/", views.api_test_page, name="api_test_page"),
+
 ]
